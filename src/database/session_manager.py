@@ -150,7 +150,6 @@ db_manager = SessionManager(
     max_overflow=config.max_overflow,
     pool_recycle=config.pool_recycle,
     pool_pre_ping=config.pool_pre_ping,
-    pool_use_lifo=config.pool_use_lifo,
 )
 
 def get_db():

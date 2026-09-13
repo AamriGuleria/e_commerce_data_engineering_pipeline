@@ -1,6 +1,6 @@
 from sqlalchemy import ARRAY, JSON, Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
-from models.Base import Base
+from .Base import Base
 
 
 # customers , products , orders , payments
