@@ -1,6 +1,6 @@
 import pandas as pd
 
-def load_csv(
+def inspect_csv(
     file_path,
     # table_name,
     # schema
@@ -26,7 +26,7 @@ def load_csv(
 
 
 
-load_csv("dataset\Brazilian E-Commerce Public Dataset by Olist.csv")
+inspect_csv("dataset\Brazilian E-Commerce Public Dataset by Olist.csv")
 
 
 # python -m src.ingestion.load_raw_data
