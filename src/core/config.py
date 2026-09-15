@@ -15,8 +15,8 @@ class Config(BaseSettings):
     def ASYNC_DATABASE_URL(self) -> str:
         return self.async_database_url
 
-    database_url: str = "postgresql://user:password@localhost:5432/db_name"
-    async_database_url: str = "postgresql+asyncpg://user:password@localhost:5432/db_name"
+    database_url: str = "postgresql://admin:admin123@localhost:5435/ecommerce_db"
+    async_database_url: str = "postgresql+asyncpg://admin:admin123@localhost:5435/ecommerce_db"
     echo: bool = False
     pool_size: int = 5
     max_overflow: int = 10

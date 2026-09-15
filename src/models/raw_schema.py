@@ -1,5 +1,4 @@
-from sqlalchemy import ARRAY, JSON, Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, Float, Integer, String
 from .Base import Base
 
 
@@ -18,18 +17,19 @@ from .Base import Base
 
 class Orders(Base):
     __tablename__ = "orders"
-    order_id = Column(String, primary_key=True)
+    order_unique_id = Column(String, primary_key=True)
+    order_id = Column(String, nullable=False, index=True)
     order_item_id = Column(Integer)
-    customer_id = Column(String, ForeignKey("customers.customer_id"))
-    product_id = Column(String, ForeignKey("products.product_id"))
-    seller_id = Column(String, ForeignKey("sellers.seller_id"))
+    customer_id = Column(String, nullable=False)
+    product_id = Column(String, nullable=False)
+    seller_id = Column(String, nullable=False)
     price = Column(Float)
     freight_value = Column(Float)
     order_status = Column(String)
 class Customers(Base):
     __tablename__ = "customers"
     customer_id = Column(String, primary_key=True)
-    customer_unique_id = Column(String, unique=True)
+    customer_unique_id = Column(String)
     customer_zip_code_prefix = Column(String)
     customer_city = Column(String)
     customer_state = Column(String)
@@ -54,7 +54,7 @@ class Seller(Base):
 class Payments(Base):
     __tablename__ = "payments"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    order_id = Column(String, ForeignKey("orders.order_id"))
+    order_id = Column(String, nullable=False, index=True)
     payment_type = Column(String)
     payment_sequential = Column(Integer)
     payment_installments = Column(Integer)

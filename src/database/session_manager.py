@@ -86,7 +86,7 @@ class SessionManager():
 
     def _setup_sync_session_factory(self):
         if self.sync_session_factory is not None:
-            return
+            return self.sync_session_factory
 
         self._setup_sync_engine()
         self.sync_session_factory = sessionmaker(
@@ -100,7 +100,7 @@ class SessionManager():
 
     def _setup_async_session_factory(self):
         if self.async_session_factory is not None:
-            return 
+            return self.async_session_factory
         self._setup_async_engine()
         self.async_session_factory = async_sessionmaker(
             self.async_engine,

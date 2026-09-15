@@ -1,5 +1,6 @@
 import pandas as pd
 import logging
+from pathlib import Path
 from utils.helper import TABLE_TO_MODEL_MAPPING
 from database import session_manager
 logger = logging.getLogger(__name__)
@@ -48,7 +49,18 @@ def load_into_postgres(
         raise
 
 if __name__ == "__main__":
-    inspect_csv(r"dataset\Brazilian E-Commerce Public Dataset by Olist.csv")
+    dataset_path = (
+        Path(__file__).resolve().parents[2]
+        / "dataset"
+        / "Brazilian E-Commerce Public Dataset by Olist.csv"
+    )
+    raw_tables = ["customers", "products", "sellers", "orders", "payments"]
+    inspect_csv(dataset_path)
+    for raw_table in raw_tables:
+        try:
+            load_into_postgres(dataset_path,raw_table)
+        except Exception as e:
+            logger.error(f"Failed to load data into table {raw_table}: {e}")
 
 
 # python -m src.ingestion.load_raw_data
