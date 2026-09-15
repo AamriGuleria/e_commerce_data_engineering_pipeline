@@ -4,12 +4,23 @@ from pathlib import Path
 from utils.helper import TABLE_TO_MODEL_MAPPING
 from database import session_manager
 logger = logging.getLogger(__name__)
-def inspect_csv(
-    file_path,
-    # table_name,
-    # schema
-):
-    df = pd.read_csv(file_path)
+
+TABLE_DEDUPLICATION_KEYS = {
+    "customers": ["customer_id"],
+    "products": ["product_id"],
+    "sellers": ["seller_id"],
+    "orders": ["order_unique_id"],
+    "payments": [
+        "order_id",
+        "payment_sequential",
+        "payment_type",
+        "payment_installments",
+        "payment_value",
+    ],
+}
+
+
+def inspect_csv(df):
     print("Shape:")
     print(df.shape)
 
@@ -29,21 +40,40 @@ def inspect_csv(
     print(df.duplicated().sum())
 
 def load_into_postgres(
-    file_path,
-    table_name
+    data,
+    table_name,
+    batch_size=1000,
 ):
     try:
-        df = pd.read_csv(file_path)
+        df = data if isinstance(data, pd.DataFrame) else pd.read_csv(data)
         model = TABLE_TO_MODEL_MAPPING[table_name]
         model_cols = set(model.__table__.columns.keys())
         df = df[[col for col in df.columns if col in model_cols]]
-        records = (
-            df.astype(object)
-            .where(pd.notna(df), None)
-            .to_dict(orient="records")
-        )
+
+        deduplication_keys = TABLE_DEDUPLICATION_KEYS[table_name]
+        missing_keys = [key for key in deduplication_keys if key not in df]
+        if missing_keys:
+            raise ValueError(
+                f"Missing deduplication columns for {table_name}: {missing_keys}"
+            )
+        df = df.drop_duplicates(subset=deduplication_keys)
+
         with session_manager.db_manager.sync_session_scope() as session:
-            session.bulk_insert_mappings(model, records)
+            for start in range(0, len(df), batch_size):
+                batch = df.iloc[start:start + batch_size]
+                records = (
+                    batch.astype(object)
+                    .where(pd.notna(batch), None)
+                    .to_dict(orient="records")
+                )
+                session.bulk_insert_mappings(model, records)
+                logger.info(
+                    "Loaded %s rows into %s (%s/%s)",
+                    len(records),
+                    table_name,
+                    min(start + batch_size, len(df)),
+                    len(df),
+                )
     except Exception as ex:
         logger.error(f"Error loading csv data into postgres: \n {ex}")
         raise
@@ -55,10 +85,11 @@ if __name__ == "__main__":
         / "Brazilian E-Commerce Public Dataset by Olist.csv"
     )
     raw_tables = ["customers", "products", "sellers", "orders", "payments"]
-    inspect_csv(dataset_path)
+    source_data = pd.read_csv(dataset_path)
+    inspect_csv(source_data)
     for raw_table in raw_tables:
         try:
-            load_into_postgres(dataset_path,raw_table)
+            load_into_postgres(source_data, raw_table)
         except Exception as e:
             logger.error(f"Failed to load data into table {raw_table}: {e}")
 
