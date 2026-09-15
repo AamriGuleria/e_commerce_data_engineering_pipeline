@@ -23,3 +23,5 @@ class Config(BaseSettings):
     pool_recycle: int = 3600
     pool_pre_ping: bool = True
     
+
+config = Config()
