@@ -9,11 +9,8 @@ TABLE_DEDUPLICATION_KEYS = {
     "customers": ["customer_id"],
     "products": ["product_id"],
     "sellers": ["seller_id"],
-    "orders": ["order_unique_id"],
-    "payments": [
-        "order_id",
-        "payment_sequential"
-    ],
+    "orders": ["order_id", "order_item_id"],
+    "payments": ["order_id", "payment_sequential"],
 }
 
 
@@ -36,6 +33,23 @@ def inspect_csv(df):
     print("\nDuplicate rows:")
     print(df.duplicated().sum())
 
+
+def validate_duplicate_groups(df, table_name, deduplication_keys):
+    value_columns = [
+        column for column in df.columns if column not in deduplication_keys
+    ]
+    conflicting_groups = (
+        df.groupby(deduplication_keys, dropna=False)[value_columns]
+        .nunique(dropna=False)
+        .gt(1)
+        .any(axis=1)
+    )
+    if conflicting_groups.any():
+        raise ValueError(
+            f"Conflicting values found for {table_name} deduplication keys: "
+            f"{conflicting_groups.sum()} groups"
+        )
+
 def load_into_postgres(
     data,
     table_name,
@@ -53,6 +67,7 @@ def load_into_postgres(
             raise ValueError(
                 f"Missing deduplication columns for {table_name}: {missing_keys}"
             )
+        # validate_duplicate_groups(df, table_name, deduplication_keys)
         df = df.drop_duplicates(subset=deduplication_keys)
 
         with session_manager.db_manager.sync_session_scope() as session:
