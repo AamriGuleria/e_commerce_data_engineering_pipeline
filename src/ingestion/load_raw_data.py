@@ -12,10 +12,7 @@ TABLE_DEDUPLICATION_KEYS = {
     "orders": ["order_unique_id"],
     "payments": [
         "order_id",
-        "payment_sequential",
-        "payment_type",
-        "payment_installments",
-        "payment_value",
+        "payment_sequential"
     ],
 }
 
