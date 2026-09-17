@@ -16,7 +16,7 @@ from .Base import Base
 # year_of_purchase,month/year_of_purchase,order_status,order_unique_id
 
 class Order_Items(Base):
-    __tablename__ = "order_citems"
+    __tablename__ = "order_items"
     __table_args__ = (
         UniqueConstraint("order_id", "order_item_id", name="uq_order_items_order_id_item_id"),
     )
