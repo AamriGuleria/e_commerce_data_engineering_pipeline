@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Float, Integer, String
+from sqlalchemy import Column, Float, Integer, String, DateTime, UniqueConstraint
 from .Base import Base
 
 
@@ -15,17 +15,30 @@ from .Base import Base
 # order_delivered_customer_date,order_estimated_delivery_date,day_of_purchase,month_of_purchase,
 # year_of_purchase,month/year_of_purchase,order_status,order_unique_id
 
-class Orders(Base):
-    __tablename__ = "orders"
+class Order_Items(Base):
+    __tablename__ = "order_citems"
+    __table_args__ = (
+        UniqueConstraint("order_id", "order_item_id", name="uq_order_items_order_id_item_id"),
+    )
     order_unique_id = Column(String, primary_key=True)
     order_id = Column(String, nullable=False, index=True)
-    order_item_id = Column(Integer)
+    order_item_id = Column(Integer,nullable=False)
     customer_id = Column(String, nullable=False)
     product_id = Column(String, nullable=False)
     seller_id = Column(String, nullable=False)
     price = Column(Float)
     freight_value = Column(Float)
     order_status = Column(String)
+
+class Orders(Base):
+    __tablename__="orders"
+    order_id = Column(String, primary_key=True)
+    order_purchase_timestamp = Column(DateTime)
+    order_approved_at = Column(DateTime)
+    order_delivered_carrier_date = Column(DateTime)
+    order_delivered_customer_date = Column(DateTime)
+    order_estimated_delivery_date = Column(DateTime)
+    shipping_limit_date = Column(DateTime)
 class Customers(Base):
     __tablename__ = "customers"
     customer_id = Column(String, primary_key=True)
@@ -53,6 +66,13 @@ class Seller(Base):
 
 class Payments(Base):
     __tablename__ = "payments"
+    __table_args__ = (
+        UniqueConstraint(
+            "order_id",
+            "payment_sequential",
+            name="uq_payments_order_id_sequential",
+        ),
+    )
     id = Column(Integer, primary_key=True, autoincrement=True)
     order_id = Column(String, nullable=False, index=True)
     payment_type = Column(String)
