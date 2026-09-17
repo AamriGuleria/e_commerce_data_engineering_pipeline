@@ -1,4 +1,4 @@
-from models import Customers, Orders, Payments, Products, Seller
+from models import Customers, Orders, Payments, Products, Seller, Order_Items
 
 TABLE_TO_MODEL_MAPPING = {
     "customers": Customers,
@@ -6,4 +6,5 @@ TABLE_TO_MODEL_MAPPING = {
     "sellers": Seller,
     "orders": Orders,
     "payments": Payments,
+    "order_items":Order_Items
 }
