@@ -1,3 +1,5 @@
+from database.session_manager import SessionManager
+
 from .validation_helper import (
     check_duplicates,
     check_minimum_value,
@@ -5,6 +7,7 @@ from .validation_helper import (
     check_not_null,  
 )
 from sqlalchemy.ext.asyncio import AsyncSession
+from database.session_manager import db_manager
 
 class Validate_Data:
     def __init__(self, db: AsyncSession):
@@ -53,3 +56,17 @@ class Validate_Data:
             and not any(minimum_counts.values())
         )
         return result
+
+    def validate_all_tables(self, dataframes, validation_rules):
+        results = {}
+
+        for table_name , df in dataframes.items():
+            results[table_name] = self.validate_table(
+                df,
+                table_name,
+                validation_rules
+            )
+        return results
+
+
+
