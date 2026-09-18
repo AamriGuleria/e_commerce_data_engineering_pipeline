@@ -34,10 +34,10 @@ VALIDATION_RULES = {
     },
     "customers":{
         "required_columns":["customer_id"],
-        "unique_key": ["customer_id","customer_unique_id"],
+        "unique_key": ["customer_id"],
         "not_null": ["customer_id"],
     },
-    "seller":{
+    "sellers":{
         "required_columns":["seller_id"],
         "unique_key": ["seller_id"],
         "not_null": ["seller_id"],
