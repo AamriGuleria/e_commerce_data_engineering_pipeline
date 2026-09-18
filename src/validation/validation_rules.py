@@ -12,9 +12,19 @@ VALIDATION_RULES = {
         ]
     },
     "payments":{
-        "required_columns":["order_id", "payment_sequential"],
+        "required_columns":[
+            "order_id",
+            "payment_sequential",
+            "payment_installments",
+            "payment_value",
+        ],
         "unique_key": ["order_id", "payment_sequential"],
-        "not_null": ["order_id", "payment_sequential"],
+        "not_null": [
+            "order_id",
+            "payment_sequential",
+            "payment_installments",
+            "payment_value",
+        ],
         "non_negative": ["payment_value"],
         "minimum_value": {
             "payment_sequential": 1,
