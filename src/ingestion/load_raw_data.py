@@ -79,7 +79,7 @@ def main():
         / "dataset"
         / "Brazilian E-Commerce Public Dataset by Olist.csv"
     )
-    raw_tables = ["customers", "products", "sellers", "orders", "payments"]
+    raw_tables = ["customers", "products", "sellers", "orders", "payments","order_items"]
     source_data = pd.read_csv(dataset_path)
     inspect_csv(source_data)
     for raw_table in raw_tables:
