@@ -73,8 +73,7 @@ def load_into_postgres(
     except Exception as ex:
         logger.error(f"Error loading csv data into postgres: \n {ex}")
         raise
-
-if __name__ == "__main__":
+def main():
     dataset_path = (
         Path(__file__).resolve().parents[2]
         / "dataset"
@@ -88,6 +87,10 @@ if __name__ == "__main__":
             load_into_postgres(source_data, raw_table)
         except Exception as e:
             logger.error(f"Failed to load data into table {raw_table}: {e}")
+
+
+if __name__ == "__main__":
+    main()
 
 
 # python -m src.ingestion.load_raw_data
