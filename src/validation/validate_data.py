@@ -1,4 +1,3 @@
-from database.session_manager import SessionManager
 
 from .validation_helper import (
     check_duplicates,
@@ -6,12 +5,10 @@ from .validation_helper import (
     check_non_negative,
     check_not_null,  
 )
-from sqlalchemy.ext.asyncio import AsyncSession
-from database.session_manager import db_manager
 
 class Validate_Data:
-    def __init__(self, db: AsyncSession):
-        self.db = db
+    # def __init__(self, db: AsyncSession):
+    #     self.db = db
 
     def validate_table(self, df , table_name , rules):
         table_rules = rules[table_name]
