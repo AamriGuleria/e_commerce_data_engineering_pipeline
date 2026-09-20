@@ -6,6 +6,7 @@ from utils.audit_logger import log_raw_data_load
 from utils.helper import TABLE_TO_MODEL_MAPPING
 from database import session_manager
 from datetime import datetime, timezone
+from sqlalchemy.dialects.postgresql import insert
 
 logger = logging.getLogger(__name__)
 
@@ -70,8 +71,12 @@ def load_into_postgres(
                     .where(pd.notna(batch), None)
                     .to_dict(orient="records")
                 )
-                session.bulk_insert_mappings(model, records)
-                inserted_row_count += len(records)
+                statement = insert(model).values(records)
+                statement = statement.on_conflict_do_nothing(
+                    index_elements=deduplication_keys
+                )
+                result = session.execute(statement)
+                inserted_row_count += result.rowcount
                 logger.info(
                     "Loaded %s rows into %s (%s/%s)",
                     len(records),
@@ -85,6 +90,7 @@ def load_into_postgres(
                 source_row_count=source_row_count,
                 rows_after_deduplication=len(df),
                 inserted_row_count=inserted_row_count,
+                skipped_row_count=len(df) - inserted_row_count,
                 status=PipelineStatus.SUCCESS,
                 started_at=started_at,
                 finished_at=finished_at,
@@ -97,7 +103,7 @@ def load_into_postgres(
             table_name=table_name,
             source_row_count=source_row_count,
             rows_after_deduplication=len(df) if df is not None else 0,
-            inserted_row_count=inserted_row_count,
+            inserted_row_count=0,
             failed_row_count=(len(df) - inserted_row_count) if df is not None else 0,
             status=PipelineStatus.FAILED,
             started_at=started_at,
@@ -114,11 +120,18 @@ def main():
     raw_tables = ["customers", "products", "sellers", "orders", "payments","order_items"]
     source_data = pd.read_csv(dataset_path)
     inspect_csv(source_data)
+    failed_tables = []
     for raw_table in raw_tables:
         try:
             load_into_postgres(source_data, raw_table)
         except Exception as e:
             logger.error(f"Failed to load data into table {raw_table}: {e}")
+            failed_tables.append(raw_table)
+
+    if failed_tables:
+        raise RuntimeError(
+            f"Raw ingestion failed for tables: {', '.join(failed_tables)}"
+        )
 
 
 if __name__ == "__main__":
