@@ -20,7 +20,10 @@ class Validate_Data:
             "failed_row_count": 0,
             "pass_rate": 0.0,
         }
-        required_columns = table_rules.get("required_columns", [])
+        required_columns = set(table_rules.get("required_columns", []))
+        required_columns.update(table_rules.get("not_null", []))
+        required_columns.update(table_rules.get("non_negative", []))
+        required_columns.update(table_rules.get("minimum_value", {}).keys())
         missing_columns = [col for col in required_columns if col not in df.columns]
         if missing_columns:
             result["valid"] = False
