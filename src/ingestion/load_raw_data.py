@@ -1,8 +1,12 @@
 import pandas as pd
 import logging
 from pathlib import Path
+from models.audit_tables import PipelineStatus
+from utils.audit_logger import log_raw_data_load
 from utils.helper import TABLE_TO_MODEL_MAPPING
 from database import session_manager
+from datetime import datetime, timezone
+
 logger = logging.getLogger(__name__)
 
 TABLE_DEDUPLICATION_KEYS = {
@@ -40,8 +44,13 @@ def load_into_postgres(
     table_name,
     batch_size=1000,
 ):
+    started_at = datetime.now(timezone.utc)
+    df = None
+    source_row_count = 0
+    inserted_row_count = 0
     try:
         df = data if isinstance(data, pd.DataFrame) else pd.read_csv(data)
+        source_row_count = len(df)
         model = TABLE_TO_MODEL_MAPPING[table_name]
         model_cols = set(model.__table__.columns.keys())
         df = df[[col for col in df.columns if col in model_cols]]
@@ -53,7 +62,6 @@ def load_into_postgres(
                 f"Missing deduplication columns for {table_name}: {missing_keys}"
             )
         df = df.drop_duplicates(subset=deduplication_keys)
-
         with session_manager.db_manager.sync_session_scope() as session:
             for start in range(0, len(df), batch_size):
                 batch = df.iloc[start:start + batch_size]
@@ -63,6 +71,7 @@ def load_into_postgres(
                     .to_dict(orient="records")
                 )
                 session.bulk_insert_mappings(model, records)
+                inserted_row_count += len(records)
                 logger.info(
                     "Loaded %s rows into %s (%s/%s)",
                     len(records),
@@ -70,8 +79,31 @@ def load_into_postgres(
                     min(start + batch_size, len(df)),
                     len(df),
                 )
+            finished_at = datetime.now(timezone.utc)
+            log_raw_data_load(
+                table_name=table_name,
+                source_row_count=source_row_count,
+                rows_after_deduplication=len(df),
+                inserted_row_count=inserted_row_count,
+                status=PipelineStatus.SUCCESS,
+                started_at=started_at,
+                finished_at=finished_at,
+                session=session,
+            )
     except Exception as ex:
         logger.error(f"Error loading csv data into postgres: \n {ex}")
+        finished_at = datetime.now(timezone.utc)
+        log_raw_data_load(
+            table_name=table_name,
+            source_row_count=source_row_count,
+            rows_after_deduplication=len(df) if df is not None else 0,
+            inserted_row_count=inserted_row_count,
+            failed_row_count=(len(df) - inserted_row_count) if df is not None else 0,
+            status=PipelineStatus.FAILED,
+            started_at=started_at,
+            finished_at=finished_at,
+            error_message=str(ex),
+        )
         raise
 def main():
     dataset_path = (
