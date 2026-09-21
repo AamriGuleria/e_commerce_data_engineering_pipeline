@@ -32,6 +32,16 @@ services:
       DATABASE_URL: postgresql://admin:admin123@postgres:5432/ecommerce_db
       ASYNC_DATABASE_URL: postgresql+asyncpg://admin:admin123@postgres:5432/ecommerce_db
     command: bash -lc "python -c 'print(\"ETL environment ready. Run your scripts from /app\")'"
-
+  grafana:
+    image: grafana/grafana
+    container_name: grafana_ecommerce
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    # depends_on:
+    #   - prometheus
 volumes:
   postgres_data:
