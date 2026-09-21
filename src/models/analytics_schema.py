@@ -49,10 +49,10 @@ class FactOrderItems(Base):
     order_id = Column(String, nullable=False, index=True)
     order_item_id = Column(Integer, nullable=False)
     
-    customer_id = Column(String, ForeignKey("dim_customer.customer_id"), nullable=False)
-    product_id = Column(String, ForeignKey("dim_product.product_id"), nullable=False)
-    seller_id = Column(String, ForeignKey("dim_seller.seller_id"), nullable=False)
-    purchase_date_id = Column(Integer, ForeignKey("dim_date.date_id"), nullable=False)
+    customer_id = Column(String, ForeignKey("dim_customer.customer_id"), nullable=False,index=True)
+    product_id = Column(String, ForeignKey("dim_product.product_id"), nullable=False,index=True)
+    seller_id = Column(String, ForeignKey("dim_seller.seller_id"), nullable=False,index=True)
+    purchase_date_id = Column(Integer, ForeignKey("dim_date.date_id"), nullable=False,index=True)
 
     order_status = Column(String)
     price = Column(Numeric(12, 2), nullable=False)
