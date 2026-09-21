@@ -1,5 +1,5 @@
 from .Base import Base
-from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Numeric, String, Float, Integer, UniqueConstraint
+from sqlalchemy import Boolean, Column, Date, ForeignKey, Numeric, String, Float, Integer, UniqueConstraint
 
 class DimCustomer(Base):
     __tablename__="dim_customer"
@@ -13,8 +13,8 @@ class DimProduct(Base):
     __tablename__="dim_product"
     product_id = Column(String, primary_key=True)
     product_category_name = Column(String)
-    product_name_lenght = Column(Float)
-    product_description_lenght = Column(Float)
+    product_name_length = Column(Float)
+    product_description_length = Column(Float)
     product_photos_qty = Column(Integer)
     product_weight_g = Column(Float)
     product_length_cm = Column(Float)
