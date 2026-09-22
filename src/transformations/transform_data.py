@@ -6,8 +6,8 @@ from sqlalchemy.dialects.postgresql import insert
 
 from database.session_manager import db_manager
 from models.raw_schema import Customers, Products, Seller
-from models.analytics_schema import DimCustomer, DimDate, DimSeller, DimProduct
-
+from models.analytics_schema import DimCustomer, DimDate, DimSeller, DimProduct, FactOrderItems
+import pandas as pd
 logger = getLogger(__name__)
 DATASET_PATH = (
             Path(__file__).resolve().parents[2]
@@ -113,7 +113,6 @@ def build_date_dimension():
             if existing_dates:
                 logger.info("dim_date table already has data. Skipping date dimension build.")
                 return
-            import pandas as pd
 
             df = pd.read_csv(DATASET_PATH, parse_dates=["order_purchase_timestamp"])
             unique_dates = df["order_purchase_timestamp"].dt.date.unique()
@@ -140,4 +139,33 @@ def build_date_dimension():
         raise
 
 def load_fact_order_items():
-    pass
+    try:
+        with db_manager.sync_session_scope() as session:
+            existing_records = session.execute(select(FactOrderItems).scalars().all())
+            if existing_records:
+                logger.info("FactOrderItems already has data. Skipping date dimension build.")
+                return
+            df = pd.read_csv(DATASET_PATH)
+            records = []
+            for record in df:
+                records.append(
+                    {
+                        "order_id": record.order_id,
+                        "order_item_id": record.order_item_id,
+                        "customer_id": record.customer_id,
+                        "product_id": record.product_id,
+                        "seller_id": record.seller_id,
+                        "purchase_date_id": record.order_purchase_timestamp,
+                        "order_status": record.order_status,
+                        "price": record.price,
+                        "freight_value": record.freight_value,
+                        "item_total": record.price + record.freight_value,
+                        "delivery_days": (pd.to_datetime(record.order_delivered_customer_date) - pd.to_datetime(record.order_purchase_timestamp)).days if pd.notnull(record.order_delivered_customer_date) else None,
+                        "delivered_late": True if (pd.to_datetime(record.order_estimated_delivery_date) < pd.to_datetime(record.order_delivered_customer_date)) else False
+                    }
+                )
+            _upsert_dimension_batch(session, FactOrderItems, records)
+            logger.info("Inserted %s rows into dim_date.", len(records))
+    except Exception as ex:
+        logger.error(f"Error Loading date dimension table {ex}")
+        raise
