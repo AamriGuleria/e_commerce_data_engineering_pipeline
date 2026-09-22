@@ -9,7 +9,11 @@ from models.raw_schema import Customers, Products, Seller
 from models.analytics_schema import DimCustomer, DimDate, DimSeller, DimProduct
 
 logger = getLogger(__name__)
-
+DATASET_PATH = (
+            Path(__file__).resolve().parents[2]
+            / "dataset"
+            / "Brazilian E-Commerce Public Dataset by Olist.csv"
+        )
 DIMENSION_CONFIG = {
     Customers: (
         DimCustomer,
@@ -104,11 +108,6 @@ def load_dimensions(raw_model, batch_size=1_000):
 
 def build_date_dimension():
     try:
-        dataset_path = (
-            Path(__file__).resolve().parents[2]
-            / "dataset"
-            / "Brazilian E-Commerce Public Dataset by Olist.csv"
-        )
         with db_manager.sync_session_scope() as session:
             existing_dates = session.execute(select(DimDate.full_date)).scalars().all()
             if existing_dates:
@@ -116,7 +115,7 @@ def build_date_dimension():
                 return
             import pandas as pd
 
-            df = pd.read_csv(dataset_path, parse_dates=["order_purchase_timestamp"])
+            df = pd.read_csv(DATASET_PATH, parse_dates=["order_purchase_timestamp"])
             unique_dates = df["order_purchase_timestamp"].dt.date.unique()
 
             date_rows = []
