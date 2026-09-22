@@ -1,11 +1,12 @@
 from logging import getLogger
+from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 
 from database.session_manager import db_manager
 from models.raw_schema import Customers, Products, Seller
-from models.analytics_schema import DimCustomer, DimSeller, DimProduct
+from models.analytics_schema import DimCustomer, DimDate, DimSeller, DimProduct
 
 logger = getLogger(__name__)
 
@@ -102,7 +103,42 @@ def load_dimensions(raw_model, batch_size=1_000):
     return loaded_row_count
 
 def build_date_dimension():
-    pass
+    try:
+        dataset_path = (
+            Path(__file__).resolve().parents[2]
+            / "dataset"
+            / "Brazilian E-Commerce Public Dataset by Olist.csv"
+        )
+        with db_manager.sync_session_scope() as session:
+            existing_dates = session.execute(select(DimDate.full_date)).scalars().all()
+            if existing_dates:
+                logger.info("dim_date table already has data. Skipping date dimension build.")
+                return
+            import pandas as pd
+
+            df = pd.read_csv(dataset_path, parse_dates=["order_purchase_timestamp"])
+            unique_dates = df["order_purchase_timestamp"].dt.date.unique()
+
+            date_rows = []
+            for date in unique_dates:
+                date_rows.append(
+                    {
+                        "full_date": date,
+                        "day_of_month": date.day,
+                        "day_name": date.strftime("%A"),
+                        "month_number": date.month,
+                        "month_name": date.strftime("%B"),
+                        "quarter": (date.month - 1) // 3 + 1,
+                        "year": date.year,
+                    }
+                )
+
+            # Insert into dim_date table
+            _upsert_dimension_batch(session, DimDate, date_rows)
+            logger.info("Inserted %s rows into dim_date.", len(date_rows))
+    except Exception as ex:
+        logger.error(f"Error Loading date dimension table {ex}")
+        raise
 
 def load_fact_order_items():
     pass
