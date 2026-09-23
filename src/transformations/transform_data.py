@@ -62,9 +62,15 @@ def _upsert_dimension_batch(session, records, target_model, col_mappings):
         pk_cols = [col.name for col in inspect(table_name).primary_key.columns]
         stmt = insert(target_model).values(data)
         stmt = stmt.on_conflict_do_update(
-            index_element = pk_cols,
-            
+            index_elements = pk_cols,
+            set_={
+                col: stmt.excluded[col]
+                for col in data[0].keys()
+                if col not in pk_cols
+            }
         )
+        session.execute(stmt)
+        session.commit()
     except Exception as ex:
         logger.error(f"Failed to upsert dimension batch: {ex}")
         raise RuntimeError(f"Failed to upsert dimension batch: {ex}")
