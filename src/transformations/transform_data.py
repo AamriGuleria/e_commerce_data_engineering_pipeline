@@ -90,3 +90,11 @@ def load_dimension_tables(model_name):
     except Exception as ex:
         logger.error(f"Failed to load dimension table {ex}")
         raise RuntimeError(f"Failed to load dimension tables: {ex}")
+
+
+
+
+# calls the dimension table load
+for model in DIMENSION_CONFIG.keys():
+    logger.info(f"Loading dimension table for model: {model.__name__}")
+    load_dimension_tables(model)
