@@ -97,7 +97,12 @@ def load_dimension_tables(model_name):
     except Exception as ex:
         logger.error(f"Failed to load dimension table {ex}")
         raise RuntimeError(f"Failed to load dimension tables: {ex}")
-
+def build_dim_date():
+    try:
+        pass
+    except Exception as ex:
+        logger.error(f"Failed to load dimension table {ex}")
+        raise RuntimeError(f"Failed to load dimension tables: {ex}")
 def fact_order_table():
     try:
         with db_manager.sync_session_scope() as session:
