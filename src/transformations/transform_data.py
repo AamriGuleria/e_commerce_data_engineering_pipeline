@@ -2,8 +2,9 @@ from pathlib import Path
 from logging import getLogger
 from database.session_manager import db_manager
 from sqlalchemy import insert, inspect, select
-from models.analytics_schema import DimCustomer, DimProduct, DimSeller
+from models.analytics_schema import DimCustomer, DimProduct, DimSeller, FactOrderItems
 from models.raw_schema import Customers, Products, Seller
+import pandas as pd
 
 logger = getLogger(__name__)
 DATASET_PATH = (
@@ -47,19 +48,22 @@ DIMENSION_CONFIG = {
     ),
 }
 
-def _upsert_dimension_batch(session, records, target_model, col_mappings):
+def _upsert_dimension_batch(session, records, target_model, col_mappings: Optional[dict]):
     try:
         if not records:
             return
-        data = [
-            {
-                target_col: getattr(record, source_col)
-                for source_col, target_col in col_mappings.items()
-            }
-            for record in records
-        ]
         table_name = target_model.__table__
         pk_cols = [col.name for col in inspect(table_name).primary_key.columns]
+        if col_mappings:
+            data = [
+                {
+                    target_col: getattr(record, source_col)
+                    for source_col, target_col in col_mappings.items()
+                }
+                for record in records
+            ]
+        else:
+            data = records
         stmt = insert(target_model).values(data)
         stmt = stmt.on_conflict_do_update(
             index_elements = pk_cols,
@@ -92,12 +96,53 @@ def load_dimension_tables(model_name):
         logger.error(f"Failed to load dimension table {ex}")
         raise RuntimeError(f"Failed to load dimension tables: {ex}")
 
-
 def fact_order_table():
     try:
         with db_manager.sync_session_scope() as session:
             logger.info("Loading fact_order table...")
-            # core logic
+            df = pd.read_csv(DATASET_PATH)
+            target_model = FactOrderItems
+            data = []
+            for record in df.iterrows():
+                purchase_timestamp = pd.to_datetime(record["order_purchase_timestamp"])
+                purchase_date_key = purchase_timestamp.date().isoformat()
+                purchase_date_id = date_lookup.get(purchase_date_key)
+                if purchase_date_id is None:
+                    raise ValueError(f"Missing dim_date row for {purchase_date_key}.")
+
+                delivered_customer_date = record.get("order_delivered_customer_date")
+                estimated_delivery_date = record.get("order_estimated_delivery_date")
+                delivered_customer_dt = (
+                    pd.to_datetime(delivered_customer_date) if pd.notna(delivered_customer_date) else pd.NaT
+                )
+                estimated_delivery_dt = (
+                    pd.to_datetime(estimated_delivery_date) if pd.notna(estimated_delivery_date) else pd.NaT
+                )
+
+                delivery_days = None
+                if pd.notna(delivered_customer_dt):
+                    delivery_days = (delivered_customer_dt - purchase_timestamp).days
+
+                delivered_late = None
+                if pd.notna(delivered_customer_dt) and pd.notna(estimated_delivery_dt):
+                    delivered_late = delivered_customer_dt > estimated_delivery_dt
+                data.append(
+                    {
+                        "order_id": record["order_id"],
+                        "order_item_id": record["order_item_id"],
+                        "customer_id": record["customer_id"],
+                        "product_id": record["product_id"],
+                        "seller_id": record["seller_id"],
+                        "purchase_date_id": purchase_date_id,
+                        "order_status": record.get("order_status"),
+                        "price": float(record["price"]),
+                        "freight_value": float(record["freight_value"]),
+                        "item_total": float(record["price"]) + float(record["freight_value"]),
+                        "delivery_days": delivery_days,
+                        "delivered_late": delivered_late,
+                    }
+                )
+            _upsert_dimension_batch(session, data, target_model)
             logger.info("Successfully loaded fact_order table.")
     except Exception as ex:
         logger.error(f"Failed to load fact_order table: {ex}")
