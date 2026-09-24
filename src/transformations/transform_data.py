@@ -1,7 +1,9 @@
 from pathlib import Path
 from logging import getLogger
+from typing import Optional
 from database.session_manager import db_manager
-from sqlalchemy import insert, inspect, select
+from sqlalchemy import inspect, select
+from sqlalchemy.dialects.postgresql import insert
 from models.analytics_schema import DimCustomer, DimProduct, DimSeller, FactOrderItems, DimDate
 from models.raw_schema import Customers, Products, Seller
 import pandas as pd
@@ -103,12 +105,12 @@ def fact_order_table():
             df = pd.read_csv(DATASET_PATH)
             target_model = FactOrderItems
             data = []
-            for index, record in df.iterrows():
-                date_lookup = dict(
-                    session.query(DimDate.full_date, DimDate.date_id).all()
-                )
+            date_lookup = dict(
+                session.query(DimDate.full_date, DimDate.date_id).all()
+            )
+            for _, record in df.iterrows():
                 purchase_timestamp = pd.to_datetime(record["order_purchase_timestamp"])
-                purchase_date_key = purchase_timestamp.date().isoformat()
+                purchase_date_key = purchase_timestamp.date()
                 purchase_date_id = date_lookup.get(purchase_date_key)
                 if purchase_date_id is None:
                     raise ValueError(f"Missing dim_date row for {purchase_date_key}.")
@@ -145,7 +147,17 @@ def fact_order_table():
                         "delivered_late": delivered_late,
                     }
                 )
-            _upsert_dimension_batch(session, data, target_model)
+            if data:
+                stmt = insert(target_model).values(data)
+                stmt = stmt.on_conflict_do_update(
+                    constraint="uq_fact_order_items_order_item",
+                    set_={
+                        column: getattr(stmt.excluded, column)
+                        for column in data[0]
+                        if column not in {"order_id", "order_item_id"}
+                    },
+                )
+                session.execute(stmt)
             logger.info("Successfully loaded fact_order table.")
     except Exception as ex:
         logger.error(f"Failed to load fact_order table: {ex}")
