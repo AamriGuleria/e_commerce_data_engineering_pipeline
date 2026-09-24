@@ -2,7 +2,7 @@ from pathlib import Path
 from logging import getLogger
 from database.session_manager import db_manager
 from sqlalchemy import insert, inspect, select
-from models.analytics_schema import DimCustomer, DimProduct, DimSeller, FactOrderItems
+from models.analytics_schema import DimCustomer, DimProduct, DimSeller, FactOrderItems, DimDate
 from models.raw_schema import Customers, Products, Seller
 import pandas as pd
 
@@ -104,6 +104,9 @@ def fact_order_table():
             target_model = FactOrderItems
             data = []
             for index, record in df.iterrows():
+                date_lookup = dict(
+                    session.query(DimDate.full_date, DimDate.date_id).all()
+                )
                 purchase_timestamp = pd.to_datetime(record["order_purchase_timestamp"])
                 purchase_date_key = purchase_timestamp.date().isoformat()
                 purchase_date_id = date_lookup.get(purchase_date_key)
