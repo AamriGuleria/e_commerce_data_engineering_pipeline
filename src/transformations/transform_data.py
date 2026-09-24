@@ -93,7 +93,15 @@ def load_dimension_tables(model_name):
         raise RuntimeError(f"Failed to load dimension tables: {ex}")
 
 
-
+def fact_order_table():
+    try:
+        with db_manager.sync_session_scope() as session:
+            logger.info("Loading fact_order table...")
+            # core logic
+            logger.info("Successfully loaded fact_order table.")
+    except Exception as ex:
+        logger.error(f"Failed to load fact_order table: {ex}")
+        raise RuntimeError(f"Failed to load fact_order table: {ex}")
 
 # calls the dimension table load
 for model in DIMENSION_CONFIG.keys():
