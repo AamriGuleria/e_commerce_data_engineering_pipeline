@@ -86,7 +86,8 @@ def load_dimension_tables(model_name):
             for record in records:
                 logger.info(f"Loading record: {record}")
                 _upsert_dimension_batch(session, record, target_model, mappings)
-                batch+=1
+                batches+=1
+        logger.info(f"Successfully loaded dimension table for model: {model_name.__name__} in {batches} batches.")
     except Exception as ex:
         logger.error(f"Failed to load dimension table {ex}")
         raise RuntimeError(f"Failed to load dimension tables: {ex}")
