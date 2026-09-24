@@ -103,7 +103,7 @@ def fact_order_table():
             df = pd.read_csv(DATASET_PATH)
             target_model = FactOrderItems
             data = []
-            for record in df.iterrows():
+            for index, record in df.iterrows():
                 purchase_timestamp = pd.to_datetime(record["order_purchase_timestamp"])
                 purchase_date_key = purchase_timestamp.date().isoformat()
                 purchase_date_id = date_lookup.get(purchase_date_key)
