@@ -98,13 +98,6 @@ def load_dimension_tables(model_name):
         logger.error(f"Failed to load dimension table {ex}")
         raise RuntimeError(f"Failed to load dimension tables: {ex}")
 
-    # full_date = Column(Date, unique=True, nullable=False)
-    # day_of_month = Column(Integer, nullable=False)
-    # day_name = Column(String, nullable=False)
-    # month_number = Column(Integer, nullable=False)
-    # month_name = Column(String, nullable=False)
-    # quarter = Column(Integer, nullable=False)
-    # year = Column(Integer, nullable=False)
 def build_dim_date():
     try:
         with db_manager.sync_session_scope() as session:
@@ -205,7 +198,11 @@ def fact_order_table():
         logger.error(f"Failed to load fact_order table: {ex}")
         raise RuntimeError(f"Failed to load fact_order table: {ex}")
 
-# calls the dimension table load
-for model in DIMENSION_CONFIG.keys():
-    logger.info(f"Loading dimension table for model: {model.__name__}")
-    load_dimension_tables(model)
+
+if __name__ == "__main__":
+    # calls the dimension table load
+    for model in DIMENSION_CONFIG.keys():
+        logger.info(f"Loading dimension table for model: {model.__name__}")
+        load_dimension_tables(model)
+    load_dimension_tables()
+    fact_order_table()
