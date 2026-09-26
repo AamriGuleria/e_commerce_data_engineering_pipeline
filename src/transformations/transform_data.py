@@ -81,18 +81,24 @@ def _upsert_dimension_batch(session, records, target_model, col_mappings: Option
         logger.error(f"Failed to upsert dimension batch: {ex}")
         raise RuntimeError(f"Failed to upsert dimension batch: {ex}")
 
-def load_dimension_tables(model_name):
+def load_dimension_tables(model_name, batch_size=1000):
     try:
         with db_manager.sync_session_scope() as session:
             if model_name not in DIMENSION_CONFIG:
                 raise ValueError(f"Model {model_name} is not configured for dimension loading.")
             target_model, mappings = DIMENSION_CONFIG[model_name]
-            records = session.execute(select(model_name).scalars().yield_per(1000))
+            records = session.scalars(select(model_name)).yield_per(batch_size)
+            batch = []
             batches=0
             for record in records:
-                logger.info(f"Loading record: {record}")
-                _upsert_dimension_batch(session, record, target_model, mappings)
-                batches+=1
+                batch.append(record)
+                if len(batch) == batch_size:
+                    _upsert_dimension_batch(session, batch, target_model, mappings)
+                    batches += 1
+                    batch = []
+            if batch:
+                _upsert_dimension_batch(session, batch, target_model, mappings)
+                batches += 1
         logger.info(f"Successfully loaded dimension table for model: {model_name.__name__} in {batches} batches.")
     except Exception as ex:
         logger.error(f"Failed to load dimension table {ex}")
@@ -200,9 +206,15 @@ def fact_order_table():
 
 
 if __name__ == "__main__":
-    # calls the dimension table load
+    for model in DIMENSION_CONFIG:
+        load_dimension_tables(model)
+    build_dim_date()
+    fact_order_table()
+
+
+def main():
     for model in DIMENSION_CONFIG.keys():
         logger.info(f"Loading dimension table for model: {model.__name__}")
         load_dimension_tables(model)
-    load_dimension_tables()
+    build_dim_date()
     fact_order_table()

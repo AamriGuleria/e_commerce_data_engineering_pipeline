@@ -1,5 +1,6 @@
 from ingestion import load_raw_data
 from validation import initiate_validation
+from transformations import transform_data
 
 if __name__ == "__main__":
     load_raw_data.main()
@@ -8,3 +9,4 @@ if __name__ == "__main__":
         raise RuntimeError(
             "Validation pass rate is below the 70% threshold; transformation stopped."
         )
+    transform_data.main()
