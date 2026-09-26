@@ -97,9 +97,46 @@ def load_dimension_tables(model_name):
     except Exception as ex:
         logger.error(f"Failed to load dimension table {ex}")
         raise RuntimeError(f"Failed to load dimension tables: {ex}")
+
+    # full_date = Column(Date, unique=True, nullable=False)
+    # day_of_month = Column(Integer, nullable=False)
+    # day_name = Column(String, nullable=False)
+    # month_number = Column(Integer, nullable=False)
+    # month_name = Column(String, nullable=False)
+    # quarter = Column(Integer, nullable=False)
+    # year = Column(Integer, nullable=False)
 def build_dim_date():
     try:
-        pass
+        with db_manager.sync_session_scope() as session:
+            df = pd.read_csv(DATASET_PATH)
+            target_model = DimDate
+            data = []
+            for _, record in df.iterrows():
+                purchase_timestamp = pd.to_datetime(record["order_purchase_timestamp"])
+                purchase_date_key = purchase_timestamp.date()
+                day_of_month = purchase_date_key.day()
+                day_name = purchase_date_key.day_name()
+                month_number = purchase_date_key.month()
+                month_name = purchase_date_key.month_name()
+                year = purchase_date_key.year()
+                quarter = (purchase_date_key.month - 1) // 3 + 1
+                data.append(
+                    {
+                        "full_date": purchase_date_key,
+                        "day_of_month": day_of_month,
+                        "day_name": day_name,
+                        "month_number": month_number,
+                        "month_name": month_name,
+                        "quarter": quarter,
+                        "year": year,
+                    }
+                )   
+            if data:
+                stmt = insert(target_model).values(data)
+                stmt = stmt.on_conflict_do_nothing(
+                    index_elements=["full_date"]
+                )
+                session.execute(stmt)
     except Exception as ex:
         logger.error(f"Failed to load dimension table {ex}")
         raise RuntimeError(f"Failed to load dimension tables: {ex}")
