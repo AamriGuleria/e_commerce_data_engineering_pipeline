@@ -113,11 +113,11 @@ def build_dim_date():
             for _, record in df.iterrows():
                 purchase_timestamp = pd.to_datetime(record["order_purchase_timestamp"])
                 purchase_date_key = purchase_timestamp.date()
-                day_of_month = purchase_date_key.day()
-                day_name = purchase_date_key.day_name()
-                month_number = purchase_date_key.month()
-                month_name = purchase_date_key.month_name()
-                year = purchase_date_key.year()
+                day_of_month = purchase_date_key.day
+                day_name = purchase_date_key.strftime('%A')
+                month_number = purchase_date_key.month
+                month_name = purchase_date_key.strftime('%B')
+                year = purchase_date_key.year
                 quarter = (purchase_date_key.month - 1) // 3 + 1
                 data.append(
                     {
