@@ -1,19 +1,12 @@
-from pathlib import Path
 from logging import getLogger
 from typing import Optional
 from database.session_manager import db_manager
-from sqlalchemy import inspect, select
+from sqlalchemy import Date, cast, inspect, select
 from sqlalchemy.dialects.postgresql import insert
 from models.analytics_schema import DimCustomer, DimProduct, DimSeller, FactOrderItems, DimDate
-from models.raw_schema import Customers, Products, Seller
-import pandas as pd
+from models.raw_schema import Customers, Order_Items, Orders, Products, Seller
 
 logger = getLogger(__name__)
-DATASET_PATH = (
-        Path(__file__).resolve().parents[2]
-        / "dataset"
-        / "Brazilian E-Commerce Public Dataset by Olist.csv"
-    )
 DIMENSION_CONFIG = {
     Customers: (
         DimCustomer,
@@ -107,12 +100,14 @@ def load_dimension_tables(model_name, batch_size=1000):
 def build_dim_date():
     try:
         with db_manager.sync_session_scope() as session:
-            df = pd.read_csv(DATASET_PATH)
             target_model = DimDate
             data = []
-            for _, record in df.iterrows():
-                purchase_timestamp = pd.to_datetime(record["order_purchase_timestamp"])
-                purchase_date_key = purchase_timestamp.date()
+            purchase_dates = session.scalars(
+                select(cast(Orders.order_purchase_timestamp, Date))
+                .where(Orders.order_purchase_timestamp.is_not(None))
+                .distinct()
+            )
+            for purchase_date_key in purchase_dates:
                 day_of_month = purchase_date_key.day
                 day_name = purchase_date_key.strftime('%A')
                 month_number = purchase_date_key.month
@@ -139,38 +134,52 @@ def build_dim_date():
     except Exception as ex:
         logger.error(f"Failed to load dimension table {ex}")
         raise RuntimeError(f"Failed to load dimension tables: {ex}")
-def fact_order_table():
+
+
+def fact_order_table(batch_size=1000):
     try:
         with db_manager.sync_session_scope() as session:
             logger.info("Loading fact_order table...")
-            df = pd.read_csv(DATASET_PATH)
             target_model = FactOrderItems
-            data = []
             date_lookup = dict(
                 session.query(DimDate.full_date, DimDate.date_id).all()
             )
-            for _, record in df.iterrows():
-                purchase_timestamp = pd.to_datetime(record["order_purchase_timestamp"])
+
+            source_rows = session.execute(
+                select(
+                    Order_Items.order_id,
+                    Order_Items.order_item_id,
+                    Order_Items.customer_id,
+                    Order_Items.product_id,
+                    Order_Items.seller_id,
+                    Order_Items.order_status,
+                    Order_Items.price,
+                    Order_Items.freight_value,
+                    Orders.order_purchase_timestamp,
+                    Orders.order_delivered_customer_date,
+                    Orders.order_estimated_delivery_date,
+                )
+                .join(Orders, Orders.order_id == Order_Items.order_id)
+                .execution_options(stream_results=True)
+            ).mappings().yield_per(batch_size)
+
+            data = []
+            batches = 0
+            for record in source_rows:
+                purchase_timestamp = record["order_purchase_timestamp"]
                 purchase_date_key = purchase_timestamp.date()
                 purchase_date_id = date_lookup.get(purchase_date_key)
                 if purchase_date_id is None:
                     raise ValueError(f"Missing dim_date row for {purchase_date_key}.")
 
-                delivered_customer_date = record.get("order_delivered_customer_date")
-                estimated_delivery_date = record.get("order_estimated_delivery_date")
-                delivered_customer_dt = (
-                    pd.to_datetime(delivered_customer_date) if pd.notna(delivered_customer_date) else pd.NaT
-                )
-                estimated_delivery_dt = (
-                    pd.to_datetime(estimated_delivery_date) if pd.notna(estimated_delivery_date) else pd.NaT
-                )
-
+                delivered_customer_dt = record["order_delivered_customer_date"]
+                estimated_delivery_dt = record["order_estimated_delivery_date"]
                 delivery_days = None
-                if pd.notna(delivered_customer_dt):
+                if delivered_customer_dt is not None:
                     delivery_days = (delivered_customer_dt - purchase_timestamp).days
 
                 delivered_late = None
-                if pd.notna(delivered_customer_dt) and pd.notna(estimated_delivery_dt):
+                if delivered_customer_dt is not None and estimated_delivery_dt is not None:
                     delivered_late = delivered_customer_dt > estimated_delivery_dt
                 data.append(
                     {
@@ -188,6 +197,20 @@ def fact_order_table():
                         "delivered_late": delivered_late,
                     }
                 )
+                if len(data) == batch_size:
+                    stmt = insert(target_model).values(data)
+                    stmt = stmt.on_conflict_do_update(
+                        constraint="uq_fact_order_items_order_item",
+                        set_={
+                            column: getattr(stmt.excluded, column)
+                            for column in data[0]
+                            if column not in {"order_id", "order_item_id"}
+                        },
+                    )
+                    session.execute(stmt)
+                    data = []
+                    batches += 1
+
             if data:
                 stmt = insert(target_model).values(data)
                 stmt = stmt.on_conflict_do_update(
@@ -199,7 +222,8 @@ def fact_order_table():
                     },
                 )
                 session.execute(stmt)
-            logger.info("Successfully loaded fact_order table.")
+                batches += 1
+            logger.info("Successfully loaded fact_order table in %s batches.", batches)
     except Exception as ex:
         logger.error(f"Failed to load fact_order table: {ex}")
         raise RuntimeError(f"Failed to load fact_order table: {ex}")
