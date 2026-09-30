@@ -1,0 +1,6 @@
+SQLAlchemy>=2.0.19,<2.1
+asyncpg
+psycopg2-binary
+pandas
+pydantic-settings
+python-dotenv
