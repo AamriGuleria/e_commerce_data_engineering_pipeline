@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from airflow.decorators import dag, task
+from airflow.sdk import dag, task
 from airflow.exceptions import AirflowException
 
 
