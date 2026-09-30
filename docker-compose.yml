@@ -32,6 +32,54 @@ services:
       DATABASE_URL: postgresql://admin:admin123@postgres:5432/ecommerce_db
       ASYNC_DATABASE_URL: postgresql+asyncpg://admin:admin123@postgres:5432/ecommerce_db
     command: bash -lc "python -c 'print(\"ETL environment ready. Run your scripts from /app\")'"
+
+  airflow-db:
+    image: postgres:16
+    container_name: ecommerce_airflow_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - airflow_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow -d airflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  airflow:
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+    image: ecommerce-airflow:3.3.2
+    container_name: ecommerce_airflow
+    restart: unless-stopped
+    working_dir: /app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-db:
+        condition: service_healthy
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS: "admin:admin"
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-db:5432/airflow
+      DATABASE_URL: postgresql://admin:admin123@postgres:5432/ecommerce_db
+      ASYNC_DATABASE_URL: postgresql+asyncpg://admin:admin123@postgres:5432/ecommerce_db
+      PYTHONPATH: /app/src
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./src:/app/src
+      - ./dataset:/app/dataset
+      - airflow_data:/opt/airflow
+    command: standalone
+
   grafana:
     image: grafana/grafana
     container_name: grafana_ecommerce
