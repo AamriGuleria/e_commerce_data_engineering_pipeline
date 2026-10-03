@@ -93,3 +93,5 @@ services:
     #   - prometheus
 volumes:
   postgres_data:
+  airflow_postgres_data:
+  airflow_data:
