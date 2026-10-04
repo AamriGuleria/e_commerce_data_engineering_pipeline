@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from airflow.sdk import dag, task
 from airflow.exceptions import AirflowException
@@ -12,13 +12,13 @@ from airflow.exceptions import AirflowException
     tags=["ecommerce", "etl"],
 )
 def ecommerce_pipeline():
-    @task
+    @task(retries=2, retry_delay=timedelta(minutes=1))
     def ingest_raw_data():
         from ingestion import load_raw_data
 
         load_raw_data.main()
 
-    @task
+    @task(retries=0)
     def validate_raw_data():
         from validation import initiate_validation
 
@@ -27,7 +27,7 @@ def ecommerce_pipeline():
                 "Validation did not meet the required pass rate."
             )
 
-    @task
+    @task(retries=2, retry_delay=timedelta(minutes=1))
     def transform_analytics_data():
         from transformations import transform_data
 
