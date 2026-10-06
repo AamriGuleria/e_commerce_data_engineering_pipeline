@@ -33,3 +33,25 @@ def test_check_not_null():
     assert result["valid"] is False
     assert result["errors"]["null_counts"] is not 0
     assert result["failed_row_count"] == 1
+
+def test_unique_keys():
+    df = pd.DataFrame([
+        {
+        "order_id": 1,
+        "payment_type":"credit_card",
+        "payment_sequential": 1, 
+        "payment_installments": 1, 
+        "payment_value": 100.0
+        },
+        {
+        "order_id": 1,
+        "payment_type":"credit_card",
+        "payment_sequential": 1, 
+        "payment_installments": 1, 
+        "payment_value": 100.0
+        },
+    ])
+    result = Validate_Data().validate_table(df,"payments",VALIDATION_RULES)
+    assert result["valid"] is False
+    assert result["errors"]["duplicate_count"] is not 0
+    assert result["failed_row_count"] == 2
