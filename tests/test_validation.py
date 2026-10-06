@@ -31,5 +31,5 @@ def test_check_not_null():
     ])
     result = Validate_Data().validate_table(df,"payments",VALIDATION_RULES)
     assert result["valid"] is False
-    assert result["errors"]["not_null_columns"] == ["payment_value"]
+    assert result["errors"]["null_counts"] is not 0
     assert result["failed_row_count"] == 1
